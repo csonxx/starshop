@@ -5,16 +5,25 @@ import CaseCard from '../components/CaseCard'
 import './StylePage.css'
 
 // 不同空间对应的可用尺寸集合 —— 空间变化时尺寸联动
+//
+// 真实业务规格分类 (对应后端 SPACE_SIZES_MAP):
+//   主卧/次卧/衣帽间  - 衣柜深度 500/550/560/580 + 高度 2.4 / 通顶 / U 型
+//   客厅              - 电视柜 2.0m / 2.4m / 3.0m / 满墙
+//   餐厅              - 餐边柜 1.2 / 1.5 / 1.8 岛台 / 2.0 半高
+//   书房              - 书桌 1.2 / 1.6 / 榻榻米 1500/1800
+//   玄关              - 鞋柜 1.0 / 1.2 通顶 / 1.5 / 换鞋凳
+//   儿童房            - 子母床/上下铺/书桌+衣柜/高低床
+//   多功能房          - 与书房相近
 const SPACE_SIZES = {
-  '客厅':     ['2.0m', '2.4m', '通顶'],
-  '餐厅':     ['1.5m', '1.8m', '2.0m', '2.4m'],
-  '主卧':     ['1.8m', '2.0m', '2.4m', '通顶'],
-  '次卧':     ['1.2m', '1.5m', '1.8m', '2.0m'],
-  '书房':     ['1.2m', '1.5m', '1.8m', '2.0m', '通顶'],
-  '衣帽间':   ['2.0m', '2.4m', '通顶'],
-  '玄关':     ['1.2m', '1.5m'],
-  '儿童房':   ['1.2m', '1.5m', '1.8m'],
-  '多功能房': ['1.5m', '1.8m', '2.0m', '通顶']
+  '主卧':   ['560深·2.4m高', '560深·2.7m通顶', '580深·一门到顶', '衣帽间U型'],
+  '次卧':   ['500深·2.4m高', '550深·2.4m高', '560深·2.4m高', '2.4m顶柜+挂衣'],
+  '衣帽间': ['560深·2.4m高', '560深·2.7m通顶', 'U型步入式', 'L型步入式'],
+  '客厅':   ['2.0m悬空电视柜', '2.4m满墙电视柜', '3.0m展示柜', '一字到顶收纳柜'],
+  '餐厅':   ['1.2m餐边柜', '1.5m餐边柜', '1.8m岛台一体', '2.0m半高餐边'],
+  '书房':   ['1.2m书桌', '1.6m书桌', '1500×2000榻榻米', '1800×2000升降桌'],
+  '玄关':   ['1.0m三门鞋柜', '1.2m通顶鞋柜', '1.5m到顶鞋柜', '换鞋凳一体'],
+  '儿童房': ['子母床·1.5m', '上下铺·1.8m', '1.2m书桌+衣柜', '成长型高低床'],
+  '多功能房': ['1500×2000榻榻米', '1800×2000升降桌', '1.6m书桌', '一字到顶收纳柜']
 }
 
 export default function StylePage() {
@@ -83,9 +92,17 @@ export default function StylePage() {
       .catch(console.error)
   }, [activeStyle, filter, loading])
 
-  const availSizes = filter.space
-    ? (SPACE_SIZES[filter.space] || [])
-    : secondary.size.map((t) => t.value)
+  // 当选了空间时, 尺寸选项是 SPACE_SIZES[space] (业务规格)
+  // 当没选空间时, 给所有真实业务规格去重展示
+  const availSizes = useMemo(() => {
+    if (filter.space) {
+      return SPACE_SIZES[filter.space] || []
+    }
+    // 全部规格合并去重
+    const all = new Set()
+    Object.values(SPACE_SIZES).forEach((arr) => arr.forEach((s) => all.add(s)))
+    return Array.from(all)
+  }, [filter.space])
 
   const onStylePick = (val) => {
     if (val === activeStyle) return
@@ -190,17 +207,13 @@ export default function StylePage() {
                 className={`chip ${!filter.size ? 'active' : ''}`}
                 onClick={() => onSecPick('size', '')}
               >不限</button>
-              {secondary.size
-                .filter((t) => filter.space === '' || availSizes.includes(t.value))
-                .map((t) => (
-                  <button
-                    key={t.id}
-                    className={`chip ${filter.size === t.value ? 'active' : ''}`}
-                    onClick={() => onSecPick('size', t.value)}
-                  >
-                    {t.name}{t.value !== '通顶' ? ' 书柜' : t.value === '通顶' && filter.space && SPACE_SIZES[filter.space]?.includes('通顶') ? '' : ''}
-                  </button>
-                ))}
+              {availSizes.map((s) => (
+                <button
+                  key={s}
+                  className={`chip ${filter.size === s ? 'active' : ''}`}
+                  onClick={() => onSecPick('size', s)}
+                >{s}</button>
+              ))}
             </FilterRow>
 
             <FilterRow label="价格">

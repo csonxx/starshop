@@ -6,7 +6,7 @@ BASE="${BASE:-http://localhost:8181/api/v1}"
 STYLES=("new-chinese" "cream" "italian-luxury" "modern" "nordic" "japanese" "american" "wabi-sabi" "minimalist" "french" "industrial")
 SPACES=("客厅" "餐厅" "主卧" "次卧" "书房" "衣帽间" "玄关" "儿童房")
 COLORS=("雾霾蓝" "莫兰迪绿" "奶油白" "焦糖棕" "烟灰" "暮青" "原木" "胭脂粉")
-SIZES=("1.2m" "1.5m" "1.8m" "2.0m" "2.4m" "通顶")
+SIZES=("560深·2.4m高" "560深·2.7m通顶" "2.0m悬空电视柜" "2.4m满墙电视柜" "1.2m通顶鞋柜" "1500×2000榻榻米")
 PRICES=("1万以下" "1-3万" "3-5万" "5-10万" "10万+")
 
 # URL-encode via python helper
@@ -137,7 +137,7 @@ echo "[8] 五维度 - 风格 × 空间 × 颜色 × 尺寸 × 价格 (抽样)"
 for s in "cream" "italian-luxury" "modern"; do
   for sp in "主卧" "客厅"; do
     for cl in "奶油白" "暮青"; do
-      for sz in "1.8m" "通顶"; do
+      for sz in "560深·2.4m高" "560深·2.7m通顶"; do
         for pr in "1-3万" "5-10万"; do
           n=$(curl -s --get \
             --data-urlencode "style=$s" --data-urlencode "space=$sp" \

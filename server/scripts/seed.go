@@ -189,14 +189,30 @@ func (s *SeedData) seedTags(ctx context.Context) error {
 		}
 	}
 
-	// 二级: 尺寸 (6 种)
+	// 二级: 尺寸 (业务规格分组, 不是抽象数字)
+	// 衣柜规格: 深度 × 高度 (用"深·高"表述更具体)
 	sizes := []model.Tag{
-		{Name: "1.2m", Value: "1.2m", Sort: 1},
-		{Name: "1.5m", Value: "1.5m", Sort: 2},
-		{Name: "1.8m", Value: "1.8m", Sort: 3},
-		{Name: "2.0m", Value: "2.0m", Sort: 4},
-		{Name: "2.4m", Value: "2.4m", Sort: 5},
-		{Name: "通顶", Value: "通顶", Sort: 6},
+		{Name: "560深·2.4m高", Value: "560深·2.4m高", Sort: 1},
+		{Name: "560深·2.7m通顶", Value: "560深·2.7m通顶", Sort: 2},
+		{Name: "580深·一门到顶", Value: "580深·一门到顶", Sort: 3},
+		{Name: "U型步入式", Value: "U型步入式", Sort: 4},
+		{Name: "L型步入式", Value: "L型步入式", Sort: 5},
+		{Name: "2.0m悬空电视柜", Value: "2.0m悬空电视柜", Sort: 6},
+		{Name: "2.4m满墙电视柜", Value: "2.4m满墙电视柜", Sort: 7},
+		{Name: "3.0m展示柜", Value: "3.0m展示柜", Sort: 8},
+		{Name: "1.2m餐边柜", Value: "1.2m餐边柜", Sort: 9},
+		{Name: "1.5m餐边柜", Value: "1.5m餐边柜", Sort: 10},
+		{Name: "1.8m岛台一体", Value: "1.8m岛台一体", Sort: 11},
+		{Name: "1.2m书桌", Value: "1.2m书桌", Sort: 12},
+		{Name: "1.6m书桌", Value: "1.6m书桌", Sort: 13},
+		{Name: "1500×2000榻榻米", Value: "1500×2000榻榻米", Sort: 14},
+		{Name: "1800×2000升降桌", Value: "1800×2000升降桌", Sort: 15},
+		{Name: "1.2m通顶鞋柜", Value: "1.2m通顶鞋柜", Sort: 16},
+		{Name: "1.5m到顶鞋柜", Value: "1.5m到顶鞋柜", Sort: 17},
+		{Name: "换鞋凳一体", Value: "换鞋凳一体", Sort: 18},
+		{Name: "子母床·1.5m", Value: "子母床·1.5m", Sort: 19},
+		{Name: "上下铺·1.8m", Value: "上下铺·1.8m", Sort: 20},
+		{Name: "一字到顶收纳柜", Value: "一字到顶收纳柜", Sort: 21},
 	}
 	for i := range sizes {
 		sizes[i].Type = model.TagSize
