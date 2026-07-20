@@ -1,0 +1,222 @@
+.lg {
+  min-height: calc(100vh - 0px);
+  background: var(--paper);
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+  background:
+    radial-gradient(ellipse at top left, rgba(200, 164, 92, 0.08), transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(31, 58, 61, 0.06), transparent 60%),
+    var(--paper);
+}
+
+.lg-card {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  width: min(1080px, 100%);
+  background: var(--paper);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-deep);
+  border: 1px solid var(--mist);
+  min-height: 600px;
+}
+
+.lg-l {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 56px 56px;
+  position: relative;
+  overflow: hidden;
+}
+.lg-l::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 80% 10%, rgba(200, 164, 92, 0.18) 0%, transparent 50%),
+    radial-gradient(circle at 10% 90%, rgba(31, 58, 61, 0.4) 0%, transparent 50%);
+}
+.lg-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+}
+.lg-brand .brand-mark {
+  width: 48px; height: 48px;
+  font-size: 24px;
+}
+.lg-brand strong {
+  font-size: 22px;
+  letter-spacing: 0.18em;
+  display: block;
+}
+.lg-brand small {
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: rgba(245, 242, 235, 0.55);
+}
+.lg-title {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 4.5vw, 60px);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  margin: 80px 0 16px;
+  position: relative;
+}
+.lg-desc {
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  color: rgba(245, 242, 235, 0.65);
+  margin: 0 0 48px;
+  position: relative;
+}
+.lg-features {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  color: rgba(245, 242, 235, 0.85);
+  position: relative;
+}
+.lg-features div { display: flex; align-items: center; gap: 12px; }
+.lg-features span {
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+
+.lg-r {
+  padding: 56px 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.lg-r h2 {
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+}
+.lg-tip {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: rgba(14, 14, 16, 0.55);
+  margin: 0 0 32px;
+}
+.lg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.lg-field label {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+.lg-field input {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--paper);
+  border: 1px solid var(--mist);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  transition: all 0.25s ease;
+}
+.lg-field input:focus {
+  outline: none;
+  border-color: var(--gold);
+  background: var(--bone-soft);
+}
+.lg-code-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+}
+.lg-send {
+  padding: 0 20px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+.lg-send:hover:not(:disabled) {
+  background: var(--gold);
+  color: var(--ink);
+}
+.lg-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lg-hint {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  padding: 12px 16px;
+  background: var(--bone-soft);
+  border-left: 3px solid var(--gold);
+  color: var(--ink);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.lg-foot {
+  font-size: 12px;
+  color: rgba(14, 14, 16, 0.45);
+  text-align: center;
+  letter-spacing: 0.06em;
+}
+.lg-foot a { color: var(--gold-deep); text-decoration: underline; }
+
+.lg-debug {
+  margin-top: 32px;
+  padding: 16px;
+  background: var(--bone);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
+  line-height: 1.8;
+}
+.lg-debug strong { color: var(--gold-deep); letter-spacing: 0.18em; }
+.lg-debug code {
+  background: var(--paper);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--mist);
+  font-family: 'SF Mono', monospace;
+  color: var(--ink);
+}
+.lg-debug ul {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  list-style: none;
+}
+.lg-debug li {
+  padding: 4px 0;
+  position: relative;
+  padding-left: 12px;
+}
+.lg-debug li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  color: var(--gold);
+}
+
+@media (max-width: 880px) {
+  .lg-card { grid-template-columns: 1fr; }
+  .lg-l { padding: 40px 28px; }
+  .lg-l .lg-title { margin: 40px 0 12px; font-size: 32px; }
+  .lg-r { padding: 40px 28px; }
+}

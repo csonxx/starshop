@@ -1,0 +1,19 @@
+# .dockerignore 让 docker build context 最小化
+# node_modules 用 builder 阶段 `npm install` 重新装
+node_modules
+dist
+.vite
+
+# 日志 + 文件系统脏东西
+*.log
+.DS_Store
+.idea
+.vscode
+.env
+.env.local
+.env.production
+.env.development
+
+# CI artifacts
+coverage
+.husky

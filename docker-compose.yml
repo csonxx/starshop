@@ -1,0 +1,101 @@
+# =============================================================================
+# 星仔高端定制官网 · 一键启动
+# 服务:
+#   mongo : MongoDB 6.0
+#   api   : Go 后端 (内部 :8080, 对外 :8080)
+#   web   : React 前端 (nginx 静态 + 反向代理 /api → api:8080, 对外 :5173)
+#   seed  : 一次性 init 容器, 给 mongo 写种子数据
+# 用法:
+#   docker compose up -d            后台启
+#   docker compose run --rm seed    单独跑 seed (写入真实案例/Banner/标签)
+#   docker compose down -v          全删并清数据卷
+# =============================================================================
+
+services:
+
+  # ---------- MongoDB ----------
+  mongo:
+    image: mongo:6.0
+    container_name: star-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - star_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      TZ: Asia/Shanghai
+
+  # ---------- Go 后端 ----------
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: starshop/api:latest
+    container_name: star-api
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Shanghai
+      STAR_HTTP_PORT: 8080
+      STAR_MONGO_URI: mongodb://mongo:27017
+      STAR_DB_NAME: star
+      STAR_JWT_SECRET: star-dev-secret-please-change
+      STAR_ADMIN_PHONE: "13800138000"
+      STAR_STATIC_CODE: "1234"
+      STAR_CORS_ORIGINS: "*"
+      STAR_SALES_PHONES: "13900000001,13900000002"
+      STAR_SUPPLIER_PHONES: "13700000001,13700000002"
+    healthcheck:
+      test: ["CMD", "curl", "-sI", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------- React 前端 (nginx 反代) ----------
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: starshop/web:latest
+    container_name: star-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "5173:80"
+    healthcheck:
+      test: ["CMD", "curl", "-sI", "http://localhost/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ---------- seed 初始化容器 (一次性) ----------
+  seed:
+    image: starshop/api:latest
+    container_name: star-seed
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      STAR_MONGO_URI: mongodb://mongo:27017
+      STAR_DB_NAME: star
+      STAR_ADMIN_PHONE: "13800138000"
+    entrypoint: ["/app/seed"]
+    restart: "no"
+    profiles: ["seed"]  # 默认不启动:  docker compose --profile seed run seed
+
+volumes:
+  star_mongo_data:

@@ -1,0 +1,16 @@
+# .dockerignore: 后端 Docker build context
+# vendor / Go build artifacts 不需要, 让 docker 层利用 cache
+
+.git
+.idea
+.vscode
+*.md
+!go.mod
+!go.sum
+
+# 测试与临时目录
+*.log
+*.test
+*.out
+docs/
+tmp/

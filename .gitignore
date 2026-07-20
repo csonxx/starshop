@@ -1,0 +1,36 @@
+# ----- 顶层 .gitignore -----
+# 各种本地不提交的东西
+
+# 系统元数据
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 日志
+*.log
+
+# Env
+.env
+.env.local
+.env.production
+
+# CI / runtime
+.ci/
+
+# Node / Python
+node_modules/
+dist/
+.vite/
+__pycache__/
+*.pyc
+
+# Go
+server/server
+server/seed
+*.test
+vendor/
+
+# 临时
+tmp/
