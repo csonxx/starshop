@@ -80,20 +80,29 @@
   margin-bottom: 8px;
 }
 .cd-price {
-  font-family: var(--font-display);
-  font-size: 48px;
+  font-family: var(--font-num); /* 数字字体, 1/I/l 形状清晰 + 等宽 */
+  font-size: 44px;
   font-weight: 600;
   color: var(--paper);
   line-height: 1;
   display: flex;
   align-items: baseline;
   gap: 4px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 .cd-price em {
   font-style: normal;
-  font-size: 18px;
+  font-size: 16px;
   color: var(--gold);
   letter-spacing: 0.18em;
+}
+.cd-price .num-sym {
+  font-family: var(--font-num);
+  font-weight: 500;
+  font-size: 28px;
+  color: var(--gold);
+  margin-right: 2px;
 }
 .cd-price-locked {
   display: flex;
@@ -218,11 +227,12 @@
   font-size: 14px;
 }
 .cd-num {
-  font-family: var(--font-display);
+  font-family: var(--font-num);
   font-size: 28px;
   color: var(--gold);
   line-height: 1;
   font-style: italic;
+  font-variant-numeric: tabular-nums;
 }
 
 .cd-two {

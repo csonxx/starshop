@@ -3,13 +3,14 @@ import { useUser } from '../store/user.jsx'
 import './CaseCard.css'
 
 // 渲染价格: 普通用户 (price=0) 显示价格区间; 销售/供应商/管理员显示精准数字
+// .num 类专门处理数字字体, 防止装饰性 display/serif 字体的 1 与 I 混淆
 function renderPrice(item) {
   if (!item.price || item.price === 0) {
     return <span className="price-num">{item.priceLabel || '请询价'}</span>
   }
   return (
     <span className="price-num">
-      ¥{(item.price / 10000).toFixed(2)}<em>万</em>
+      <span className="num-sym">¥</span><span className="num">{(item.price / 10000).toFixed(2)}</span><em>万</em>
     </span>
   )
 }

@@ -113,12 +113,13 @@
   color: rgba(14, 14, 16, 0.55);
 }
 .adm-stat-n {
-  font-family: var(--font-display);
+  font-family: var(--font-num);
   font-size: 44px;
   font-weight: 600;
   color: var(--ink);
   margin-top: 10px;
   letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 .adm-stat em {
   font-style: normal;

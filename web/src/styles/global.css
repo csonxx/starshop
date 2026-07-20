@@ -18,9 +18,17 @@
   --moss-deep: #14282B;
   --carmine: #7B2C2C;
 
-  --font-display: 'Cormorant Garamond', 'Noto Serif SC', serif;
-  --font-serif: 'Noto Serif SC', 'Songti SC', serif;
-  --font-sans: 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* 字体策略:
+     - --font-display 大号标题 (无衬线体系): SF Pro Display / Helvetica Neue + Inter.
+       移除 Cormorant Garamond (装饰性衬线会让数字 1 与 I 形状混淆, 已被替换).
+     - --font-serif  正文 (中文): PingFang SC / Microsoft YaHei.
+     - --font-sans   UI 文案.
+     - --font-num    数字 (Helvetica 体系): 1/I/l 形状清晰 + 等宽 tabular-nums.
+  */
+  --font-display: 'Helvetica Neue', 'Helvetica', 'SF Pro Display', 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif:   'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Noto Sans SC', sans-serif;
+  --font-sans:    'Helvetica Neue', 'Helvetica', 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-num:     'Helvetica Neue', 'Helvetica', 'SF Pro Display', 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
 
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -41,7 +49,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans); /* 优先 -apple-system, 数字 1/I/l 形状清晰 */
   font-size: 15px;
   line-height: 1.65;
   color: var(--ink);
@@ -110,6 +118,8 @@ img {
 
 .serif { font-family: var(--font-serif); }
 .display { font-family: var(--font-display); letter-spacing: 0.02em; }
+/* 数字专用字体栈: 避免在装饰性 display/serif 字体里数字 1/I/l 形状混淆 */
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .muted { color: rgba(14, 14, 16, 0.55); }
 
 /* 按钮 */

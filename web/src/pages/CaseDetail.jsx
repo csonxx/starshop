@@ -47,12 +47,13 @@ export default function CaseDetail() {
                 <div className="cd-price-label">{item.price ? '精准报价' : '参考价格'}</div>
                 {item.price && item.price > 0 ? (
                   <div className="cd-price">
-                    <span className="display">¥{(item.price / 10000).toFixed(2)}</span>
+                    <span className="num-sym">¥</span>
+                    <span className="num">{(item.price / 10000).toFixed(2)}</span>
                     <em>万</em>
                   </div>
                 ) : (
                   <div className="cd-price cd-price-locked">
-                    <span className="display">{item.priceLabel || '请询价'}</span>
+                    <span className="num">{item.priceLabel || '请询价'}</span>
                     <small>登录销售/供应商可查看精准价</small>
                   </div>
                 )}
