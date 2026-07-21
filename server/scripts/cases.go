@@ -359,14 +359,12 @@ func makeCase(sc StyleConf, space string, v int) model.Case {
 	price := calcPrice(sc, space, v, tmpl.Area)
 	priceLabel := priceToLabel(price)
 
-	caseCounter++
-
 	title := buildTitle(sc, space, tmpl)
 
-	cover := PickCaseImage(sc.Key, space, hashV(fmt.Sprintf("%s-%s-%d-cover", sc.Key, space, caseCounter)))
+	cover := PickCaseImage(sc.Key, space, v)
 	images := []string{
-		PickCaseImage(sc.Key, space, hashV(fmt.Sprintf("%s-%s-%d-detail-1", sc.Key, space, caseCounter))),
-		PickCaseImage(sc.Key, space, hashV(fmt.Sprintf("%s-%s-%d-detail-2", sc.Key, space, caseCounter))),
+		PickCaseImage(sc.Key, space, v+1),
+		PickCaseImage(sc.Key, space, v+2),
 	}
 
 	highlights := sc.Highlights
@@ -387,12 +385,10 @@ func makeCase(sc StyleConf, space string, v int) model.Case {
 		Hardware:   sc.Hardware,
 		Pinned:     false,
 		Enabled:    true,
-		Source:     "Wikimedia Commons 开放许可图库，逐图来源见 /img-pool/SOURCES.md",
+		Source:     "土巴兔、住小帮及板材厂家公开案例图，逐图来源见 /img-pool/SOURCES.md",
 	}
 	return cc
 }
-
-var caseCounter int
 
 // styleColorMap 风格调性色卡 (实际项目色卡)
 var styleColorMap = map[string][]string{

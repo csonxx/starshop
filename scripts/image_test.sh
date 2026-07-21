@@ -17,11 +17,11 @@ echo " Star · 图片加载验证"
 echo "============================================"
 
 echo ""
-echo "[1] 本地图池 88 张风格空间图全部有效"
+echo "[1] 本地图池 440 张风格空间图全部有效"
 i=0
 zero=0
 invalid=0
-for f in $WEB_ROOT/public/img-pool/case_*_*_01.jpg; do
+for f in $WEB_ROOT/public/img-pool/case_*_*.jpg; do
   i=$((i+1))
   name=$(basename "$f")
   size=$(stat -f %z "$f" 2>/dev/null || stat -c %s "$f")
@@ -39,8 +39,8 @@ PY
   fi
 done
 echo "  共 $i 张, 小于 1KB $zero 张, 无法解码 $invalid 张"
-if [ "$zero" = "0" ] && [ "$invalid" = "0" ] && [ "$i" = "88" ]; then
-  ok "88 张图全部 ≥ 1KB 且可解码"
+if [ "$zero" = "0" ] && [ "$invalid" = "0" ] && [ "$i" = "440" ]; then
+  ok "440 张图全部 ≥ 1KB 且可解码"
 else
   bad "图池异常"
 fi

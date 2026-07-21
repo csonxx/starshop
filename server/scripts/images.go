@@ -2,7 +2,6 @@ package scripts
 
 import (
 	"fmt"
-	"hash/fnv"
 )
 
 // imageRoot 部署时为 /img-pool/... 静态 URL, 由 nginx/web serve.
@@ -28,14 +27,16 @@ type poolEntry struct {
 }
 
 func buildPoolEntries() []poolEntry {
-	out := make([]poolEntry, 0, len(STYLES)*len(SPACES))
+	out := make([]poolEntry, 0, len(STYLES)*len(SPACES)*5)
 	for _, style := range STYLES {
 		for _, space := range SPACES {
-			out = append(out, poolEntry{
-				File:  fmt.Sprintf("case_%s_%s_01.jpg", style.Key, imageSpaceSlugs[space]),
-				Style: style.Key,
-				Space: space,
-			})
+			for imageIndex := 1; imageIndex <= 5; imageIndex++ {
+				out = append(out, poolEntry{
+					File:  fmt.Sprintf("case_%s_%s_%02d.jpg", style.Key, imageSpaceSlugs[space], imageIndex),
+					Style: style.Key,
+					Space: space,
+				})
+			}
 		}
 	}
 	return out
@@ -120,12 +121,6 @@ var fallbackStyles = []string{
 var fallbackSpaces = []string{
 	"客厅", "主卧", "次卧", "餐厅", "书房",
 	"衣帽间", "玄关", "儿童房",
-}
-
-func hashV(s string) int {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(s))
-	return int(h.Sum32())
 }
 
 // LoadBannerImages 返回 4 张 banner 轮播图 URL.
