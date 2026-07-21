@@ -4,16 +4,24 @@ import { api } from '../../api'
 export default function Overview() {
   const [stats, setStats] = useState(null)
   const [byStyle, setByStyle] = useState([])
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    api.adminOverview().then((r) => setStats(r.data)).catch(console.error)
-    api.adminStatsByStyle().then((r) => setByStyle(r.data || [])).catch(console.error)
+    Promise.all([api.adminOverview(), api.adminStatsByStyle()])
+      .then(([overview, styles]) => {
+        setStats(overview.data)
+        setByStyle(styles.data || [])
+      })
+      .catch((err) => setError(err.message))
   }, [])
+
+  const total = byStyle.reduce((sum, item) => sum + item.count, 0) || 1
 
   return (
     <div>
       <h1 className="adm-h1">数据概览</h1>
       <p className="adm-sub">星仔高端定制 · 运营后台实时统计</p>
+      {error && <div className="adm-message error">{error}</div>}
 
       <div className="adm-stat-grid">
         <Stat n={stats?.bannerCount} label="Banner 数量" />
@@ -38,8 +46,7 @@ export default function Overview() {
           </thead>
           <tbody>
             {byStyle.map((s) => {
-              const total = byStyle.reduce((a, b) => a + b.value, 0) || 1
-              const pct = (s.value / total) * 100
+              const pct = (s.count / total) * 100
               return (
                 <tr key={s.name}>
                   <td><strong>{s.name}</strong></td>

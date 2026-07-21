@@ -5,25 +5,39 @@ export default function Banners() {
   const [list, setList] = useState([])
   const [editing, setEditing] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
 
-  const load = () => api.adminListBanners().then((r) => setList(r.data || []))
+  const load = () => api.adminListBanners().then((r) => setList(r.data || [])).catch((err) => setError(err.message))
   useEffect(() => { load() }, [])
 
   const onSave = async () => {
-    if (editing.id) {
-      await api.adminUpdateBanner(editing.id, editing)
-    } else {
-      await api.adminCreateBanner(editing)
+    setSaving(true)
+    setError('')
+    try {
+      if (editing.id) {
+        await api.adminUpdateBanner(editing.id, editing)
+      } else {
+        await api.adminCreateBanner(editing)
+      }
+      setShowForm(false)
+      setEditing(null)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
     }
-    setShowForm(false)
-    setEditing(null)
-    load()
   }
 
   const onDelete = async (id) => {
     if (!confirm('确认删除该 Banner?')) return
-    await api.adminDeleteBanner(id)
-    load()
+    try {
+      await api.adminDeleteBanner(id)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   const startNew = () => {
@@ -39,6 +53,7 @@ export default function Banners() {
     <div>
       <h1 className="adm-h1">Banner 管理</h1>
       <p className="adm-sub">运营首页顶部轮播 · 最多 5 张</p>
+      {error && <div className="adm-message error">{error}</div>}
 
       <div className="adm-card">
         <div className="adm-card-h">
@@ -90,7 +105,7 @@ export default function Banners() {
               </select>
             </label>
             <div className="submit-row">
-              <button className="btn-mini primary" onClick={onSave}>保存</button>
+              <button className="btn-mini primary" onClick={onSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
             </div>
           </div>
         </div>

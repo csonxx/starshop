@@ -30,6 +30,8 @@ export default function CaseEditor() {
   const [sizes, setSizes] = useState([])
   const [prices, setPrices] = useState([])
   const [colors, setColors] = useState([])
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -46,11 +48,13 @@ export default function CaseEditor() {
       setColors(e.data || [])
     })
     if (!isNew) {
-      api.caseDetail(id).then((r) => setData(r.data)).catch(() => setData(empty))
+      api.adminGetCase(id).then((r) => setData(r.data)).catch((err) => setError(err.message))
     }
   }, [id])
 
   const onSubmit = async () => {
+    setSaving(true)
+    setError('')
     const payload = {
       ...data,
       price: Number(data.price) || 0,
@@ -60,18 +64,25 @@ export default function CaseEditor() {
       materials: arrayField(data.materials),
       hardware: arrayField(data.hardware)
     }
-    if (isNew) {
-      await api.adminCreateCase(payload)
-    } else {
-      await api.adminUpdateCase(id, payload)
+    try {
+      if (isNew) {
+        await api.adminCreateCase(payload)
+      } else {
+        await api.adminUpdateCase(id, payload)
+      }
+      nav('/admin/cases')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
     }
-    nav('/admin/cases')
   }
 
   return (
     <div>
       <h1 className="adm-h1">{isNew ? '新增案例' : '编辑案例'}</h1>
       <p className="adm-sub">填写案例详情 · 支持多色 / 多图 / 多亮点</p>
+      {error && <div className="adm-message error">{error}</div>}
 
       <div className="adm-form">
         <label className="full">标题<input value={data.title} onChange={(e) => setData({ ...data, title: e.target.value })} placeholder="例如：云山胡桃 · 通顶玄关一体柜" /></label>
@@ -143,7 +154,7 @@ export default function CaseEditor() {
 
         <div className="submit-row">
           <button className="btn-mini" onClick={() => nav('/admin/cases')}>取消</button>
-          <button className="btn-mini primary" onClick={onSubmit}>保存</button>
+          <button className="btn-mini primary" onClick={onSubmit} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
         </div>
       </div>
     </div>

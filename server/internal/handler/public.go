@@ -1,8 +1,11 @@
+// Package handler 公开接口.
 package handler
 
 import (
+	"errors"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,21 +15,28 @@ import (
 	"star/server/pkg/response"
 )
 
-// PublicHandler 前台公开数据接口 (Banner / 标签 / 案例)
-// 案例接口根据当前用户角色脱敏价格:
-//   - 普通用户 / 匿名: 仅看价格区间 (priceLabel), price 置 0
-//   - 销售 / 供应商 / 管理员: 看精准数字 (price)
+// PublicHandler 暴露 Banner/Tag/Case 公开接口.
 type PublicHandler struct {
 	banners *repo.BannerRepo
 	tags    *repo.TagRepo
 	cases   *repo.CaseRepo
 }
 
+// NewPublicHandler 构造.
 func NewPublicHandler(b *repo.BannerRepo, t *repo.TagRepo, c *repo.CaseRepo) *PublicHandler {
 	return &PublicHandler{banners: b, tags: t, cases: c}
 }
 
-// currentRole 从 gin context 读取当前用户角色 (匿名时默认 model.RoleUser)
+// Register 在路由组中绑定全部公开端点.
+func (h *PublicHandler) Register(g *gin.RouterGroup) {
+	g.GET("/banners", h.Banners)
+	g.GET("/tags", h.Tags)
+	g.GET("/cases", h.Cases)
+	g.GET("/cases/pinned", h.Pinned)
+	g.GET("/cases/:id", h.CaseDetail)
+}
+
+// currentRole 从 context 读取当前角色; 没有 claims 时默认匿名 (按普通用户处理).
 func currentRole(c *gin.Context) string {
 	if v, ok := c.Get("claims"); ok {
 		if claims, ok2 := v.(*middleware.Claims); ok2 && claims != nil {
@@ -36,7 +46,6 @@ func currentRole(c *gin.Context) string {
 	return model.RoleUser
 }
 
-// sanitizeCase 单条案例脱敏: 普通用户隐藏精准价格
 func sanitizeCase(c model.Case, role string) model.Case {
 	if !model.CanSeePrice(role) {
 		c.Price = 0
@@ -44,92 +53,140 @@ func sanitizeCase(c model.Case, role string) model.Case {
 	return c
 }
 
-// sanitizeCases 批量脱敏 (in-place)
+// sanitizeCases 批量脱敏价格, 返回新切片.
 func sanitizeCases(list []model.Case, role string) []model.Case {
 	if model.CanSeePrice(role) {
 		return list
 	}
+	out := make([]model.Case, len(list))
 	for i := range list {
-		list[i].Price = 0
+		out[i] = list[i]
+		out[i].Price = 0
 	}
-	return list
+	return out
 }
 
-// Banners 首页轮播 Banner
+// Banners 公开返回启用的 Banner, 数量截断到最多 5.
 func (h *PublicHandler) Banners(c *gin.Context) {
-	out, err := h.banners.ListEnabled(c.Request.Context())
+	cur, err := h.banners.FindEnabled(c.Request.Context(), 5)
 	if err != nil {
-		log.Printf("[public] banners ERROR: %v", err)
-		response.ServerError(c, err.Error())
+		response.ServerError(c, err)
 		return
 	}
-	response.OK(c, out)
+	if cur == nil {
+		cur = []model.Banner{}
+	}
+	response.OK(c, cur)
 }
 
-// Tags 标签列表 (type=style|space|color|size|price; 空则全量)
+// Tags 返回指定 type 的标签.
 func (h *PublicHandler) Tags(c *gin.Context) {
-	typ := c.Query("type")
-	out, err := h.tags.ListEnabled(c.Request.Context(), typ)
-	if err != nil {
-		log.Printf("[public] tags ERROR type=%s: %v", typ, err)
-		response.ServerError(c, err.Error())
+	typ := strings.ToLower(strings.TrimSpace(c.Query("type")))
+	if !validTagType(typ) {
+		response.BadRequest(c, "type invalid")
 		return
 	}
-	response.OK(c, out)
-}
-
-// Cases 案例列表 (支持 style/space/color/size/price 多维筛选 + 分页)
-// 二级筛选采用 OR 语义: 任一命中即返回, 保证 UI 上"选择都有数据"
-// 一级风格是 AND 精确匹配
-func (h *PublicHandler) Cases(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("pageSize", "24"))
-	f := repo.CaseFilter{
-		Style:  c.Query("style"),
-		Space:  c.Query("space"),
-		Color:  c.Query("color"),
-		Size:   c.Query("size"),
-		Price:  c.Query("price"),
-		Search: c.Query("q"),
-		Page:   page,
-		Size2:  size,
-	}
-	list, total, err := h.cases.List(c.Request.Context(), f)
+	list, err := h.tags.ListEnabled(c.Request.Context(), typ)
 	if err != nil {
-		log.Printf("[public] cases ERROR f=%+v: %v", f, err)
-		response.ServerError(c, err.Error())
+		response.ServerError(c, err)
 		return
 	}
-	role := currentRole(c)
-	list = sanitizeCases(list, role)
-	log.Printf("[public] cases role=%s style=%s space=%s color=%s size=%s price=%s -> total=%d page=%d",
-		role, f.Style, f.Space, f.Color, f.Size, f.Price, total, page)
-	response.OK(c, gin.H{"list": list, "total": total, "page": page, "size": size})
-}
-
-// CaseDetail 案例详情, 含大图 / 价格 (价格按角色脱敏)
-func (h *PublicHandler) CaseDetail(c *gin.Context) {
-	id := c.Param("id")
-	caseObj, err := h.cases.Get(c.Request.Context(), mustObjectID(id))
-	if err != nil {
-		response.BadRequest(c, "case not found")
-		return
-	}
-	role := currentRole(c)
-	out := sanitizeCase(*caseObj, role)
-	log.Printf("[public] case-detail id=%s role=%s title=%s", id, role, out.Title)
-	response.OK(c, out)
-}
-
-// Pinned 首页置顶案例 (后台可置顶, 最多 8 个)
-func (h *PublicHandler) Pinned(c *gin.Context) {
-	list, err := h.cases.ListPinned(c.Request.Context())
-	if err != nil {
-		log.Printf("[public] pinned ERROR: %v", err)
-		response.ServerError(c, err.Error())
-		return
-	}
-	role := currentRole(c)
-	list = sanitizeCases(list, role)
 	response.OK(c, list)
+}
+
+// Cases 公开案例列表. 多选参数通过逗号分隔.
+func (h *PublicHandler) Cases(c *gin.Context) {
+	role := currentRole(c)
+
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		response.BadRequest(c, "page invalid")
+		return
+	}
+	size, err := strconv.Atoi(c.DefaultQuery("pageSize", "24"))
+	if err != nil || size < 1 || size > 60 {
+		response.BadRequest(c, "pageSize invalid")
+		return
+	}
+	style := strings.TrimSpace(c.Query("style"))
+	q := strings.TrimSpace(c.Query("q"))
+	if len([]rune(style)) > tagNameMax || len([]rune(q)) > caseTitleMax {
+		response.BadRequest(c, "filter too long")
+		return
+	}
+
+	filter := repo.CaseFilter{
+		Style:      style,
+		Space:      repo.SplitLists(c.QueryArray("space")...),
+		Color:      repo.SplitLists(c.QueryArray("color")...),
+		Size:       repo.SplitLists(c.QueryArray("size")...),
+		Price:      repo.SplitLists(c.QueryArray("price")...),
+		Q:          q,
+		Page:       page,
+		Size2:      size,
+		OnlyActive: true,
+	}
+
+	items, total, err := h.cases.List(c.Request.Context(), filter)
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	log.Printf("[public] cases role=%s style=%s space=%v color=%v size=%v price=%v -> total=%d page=%d",
+		role, filter.Style, filter.Space, filter.Color, filter.Size, filter.Price, total, filter.Page)
+
+	out := sanitizeCases(items, role)
+
+	normPage, normSize := normalizePage(filter.Page, filter.Size2)
+	response.OK(c, gin.H{
+		"list":     out,
+		"total":    total,
+		"page":     normPage,
+		"pageSize": normSize,
+	})
+}
+
+// Pinned 首页置顶.
+func (h *PublicHandler) Pinned(c *gin.Context) {
+	role := currentRole(c)
+	items, err := h.cases.Pinned(c.Request.Context())
+	if err != nil {
+		response.ServerError(c, err)
+		return
+	}
+	if items == nil {
+		items = []model.Case{}
+	}
+	response.OK(c, sanitizeCases(items, role))
+}
+
+// CaseDetail 公开详情, 仅返回已启用案例.
+func (h *PublicHandler) CaseDetail(c *gin.Context) {
+	role := currentRole(c)
+	oid, err := PrimitiveFromParam(c)
+	if err != nil {
+		response.BadRequest(c, "invalid id")
+		return
+	}
+	cc, err := h.cases.Get(c.Request.Context(), oid)
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			response.NotFound(c, "case not found")
+			return
+		}
+		response.ServerError(c, err)
+		return
+	}
+	response.OK(c, sanitizeCase(cc, role))
+}
+
+// normalizePage 返回客户端使用的规范 page/size.
+func normalizePage(page, size int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if size <= 0 || size > 60 {
+		size = 24
+	}
+	return page, size
 }

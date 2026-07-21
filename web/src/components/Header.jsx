@@ -9,7 +9,22 @@ export default function Header() {
   const loc = useLocation()
   const [open, setOpen] = useState(false)
 
-  useEffect(() => { setOpen(false) }, [loc.pathname])
+  useEffect(() => {
+    setOpen(false)
+    if (!loc.hash) return
+    requestAnimationFrame(() => {
+      document.querySelector(loc.hash)?.scrollIntoView({ behavior: 'smooth' })
+    })
+  }, [loc.pathname, loc.hash])
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   return (
     <header className={`hdr ${open ? 'open' : ''}`}>
@@ -29,7 +44,7 @@ export default function Header() {
           <NavLink to="/style/italian-luxury">意式轻奢</NavLink>
           <NavLink to="/style/modern">现代简约</NavLink>
           <NavLink to="/cases" end>全部分类</NavLink>
-          <a href="#factory">工厂直营</a>
+          <Link to="/#factory">工厂直营</Link>
         </nav>
 
         <div className="hdr-right">
@@ -44,23 +59,33 @@ export default function Header() {
           ) : (
             <Link to="/login" className="btn btn-ghost">登录 / 注册</Link>
           )}
-          <button className="hamburger" onClick={() => setOpen(!open)} aria-label="菜单">
+          <button
+            className="hamburger"
+            onClick={() => setOpen((value) => !value)}
+            aria-label={open ? '关闭菜单' : '打开菜单'}
+            aria-expanded={open}
+            aria-controls="mobile-menu"
+          >
             <span /><span /><span />
           </button>
         </div>
       </div>
 
       {open && (
-        <div className="mobile-menu">
+        <div className="mobile-menu" id="mobile-menu">
           <NavLink to="/" end>首页</NavLink>
           <NavLink to="/style/new-chinese">新中式</NavLink>
           <NavLink to="/style/cream">奶油风</NavLink>
           <NavLink to="/style/italian-luxury">意式轻奢</NavLink>
           <NavLink to="/style/modern">现代简约</NavLink>
           <NavLink to="/cases" end>全部分类</NavLink>
-          <a href="#factory" onClick={() => setOpen(false)}>工厂直营</a>
+          <Link to="/#factory">工厂直营</Link>
           {user ? (
-            isAdmin && <Link to="/admin">运营后台</Link>
+            <>
+              <Link to="/me">我的账户</Link>
+              {isAdmin && <Link to="/admin">运营后台</Link>}
+              <button className="mobile-logout" onClick={() => { logout(); nav('/') }}>退出登录</button>
+            </>
           ) : (
             <Link to="/login">登录 / 注册</Link>
           )}

@@ -4,6 +4,13 @@
   letter-spacing: 0.18em;
   color: rgba(14, 14, 16, 0.45);
 }
+.cd-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  color: var(--carmine);
+}
 
 .cd-back {
   padding: 28px 0 8px;
@@ -126,6 +133,14 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+.cd-cta-group .btn-ghost {
+  color: var(--paper);
+  border-color: rgba(245, 242, 235, 0.65);
+}
+.cd-cta-group .btn-ghost:hover {
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .cd-spec {

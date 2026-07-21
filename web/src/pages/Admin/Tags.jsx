@@ -14,8 +14,10 @@ export default function Tags() {
   const [filter, setFilter] = useState('style')
   const [editing, setEditing] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
 
-  const load = () => api.adminListTags().then((r) => setAll(r.data || []))
+  const load = () => api.adminListTags().then((r) => setAll(r.data || [])).catch((err) => setError(err.message))
   useEffect(() => { load() }, [])
 
   const grouped = useMemo(() => {
@@ -28,20 +30,32 @@ export default function Tags() {
   }, [all])
 
   const onSave = async () => {
-    if (editing.id) {
-      await api.adminUpdateTag(editing.id, editing)
-    } else {
-      await api.adminCreateTag(editing)
+    setSaving(true)
+    setError('')
+    try {
+      if (editing.id) {
+        await api.adminUpdateTag(editing.id, editing)
+      } else {
+        await api.adminCreateTag(editing)
+      }
+      setShowForm(false)
+      setEditing(null)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
     }
-    setShowForm(false)
-    setEditing(null)
-    load()
   }
 
   const onDelete = async (id) => {
     if (!confirm('确认删除该标签?')) return
-    await api.adminDeleteTag(id)
-    load()
+    try {
+      await api.adminDeleteTag(id)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   const startNew = () => {
@@ -59,6 +73,7 @@ export default function Tags() {
     <div>
       <h1 className="adm-h1">标签管理</h1>
       <p className="adm-sub">一级风格 + 二级多维筛选标签</p>
+      {error && <div className="adm-message error">{error}</div>}
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
         {Object.keys(TYPE_LABEL).map((k) => (
@@ -134,7 +149,7 @@ export default function Tags() {
               </select>
             </label>
             <div className="submit-row">
-              <button className="btn-mini primary" onClick={onSave}>保存</button>
+              <button className="btn-mini primary" onClick={onSave} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
             </div>
           </div>
         </div>

@@ -1,9 +1,12 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useUser } from '../store/user.jsx'
 import './Me.css'
 
 export default function Me() {
   const { user, isAdmin, logout } = useUser()
+  const nav = useNavigate()
+  const [params] = useSearchParams()
+  const intent = params.get('intent')
   if (!user) {
     return (
       <div className="me container">
@@ -17,10 +20,20 @@ export default function Me() {
         <div className="me-avatar">{user.phone?.slice(-2)}</div>
         <h2>{user.nickname || 'Star 用户'}</h2>
         <p className="me-phone">{user.phone}</p>
-        <p className="me-role">身份 · {user.role === 'admin' ? '管理员' : '普通用户'}</p>
+        <p className="me-role">身份 · {roleLabel(user.role)}</p>
+        {intent === 'measure' && <p className="me-notice">预约需求已记录，请拨打 400-888-1314 联系设计师确认量尺时间。</p>}
         {isAdmin && <Link to="/admin" className="btn btn-gold">进入运营后台</Link>}
-        <button className="btn btn-ghost" onClick={logout}>退出登录</button>
+        <button className="btn btn-ghost" onClick={() => { logout(); nav('/') }}>退出登录</button>
       </div>
     </div>
   )
+}
+
+function roleLabel(role) {
+  return {
+    admin: '管理员',
+    sales: '销售',
+    supplier: '供应商',
+    user: '普通用户'
+  }[role] || '普通用户'
 }

@@ -1,6 +1,6 @@
 # 星仔高端定制 · 工厂直营官网
 
-> 全屋定制工厂直营品牌官网 · 11 种主流风格 · 374 条真实案例 · 工厂直营 · 设计师 1V1
+> 全屋定制工厂直营品牌官网 · 11 种主流风格 · 440 条真实案例 · 工厂直营 · 设计师 1V1
 
 [![Go 1.21](https://img.shields.io/badge/Go-1.21-blue?logo=go)](https://go.dev)
 [![React 18](https://img.shields.io/badge/React-18.2-149eca?logo=react)](https://react.dev)
@@ -78,8 +78,8 @@ star/
 │   │   └── repo/            Mongo 数据访问 (OR 语义筛选)
 │   ├── scripts/             种子数据程序化生成
 │   │   ├── seed.go          Banner/标签/案例/用户 全量写入
-│   │   ├── cases.go         374 条案例 程序生成 (style×space×var 覆盖)
-│   │   └── imagedl.go       本地图池 /img-pool/case_NN.jpg 选取
+│   │   ├── cases.go         440 条案例 程序生成 (style×space×var 覆盖)
+│   │   └── images.go        88 张风格×空间本地图池映射
 │   ├── pkg/response/        统一响应信封
 │   ├── Dockerfile           后端 Docker 多阶段构建
 │   └── go.mod
@@ -130,7 +130,7 @@ brew services start mongodb-community
 # 2. 启动后端
 cd server
 go mod tidy
-go run ./cmd/seed   # 写入真实种子数据 (374 条案例 + 4 banner + 5 类标签)
+go run ./cmd/seed   # 写入真实种子数据 (440 条案例 + 4 banner + 5 类标签)
 go run ./cmd/server # 默认 :8080, 可通过 STAR_HTTP_PORT 覆盖
 
 # 3. 启动前端
@@ -190,10 +190,10 @@ docker compose down -v          # 全删并清数据卷
 
 - **4 张** Banner（工厂直营 / 新中式 / 奶油风 / 意式轻奢）
 - **5 类标签**：风格 11 / 空间 9 / 颜色 8 / 尺寸 6 / 价格 5
-- **374 条** 案例 — 11 风格 × 8 空间 × 4 变体 + 11 设计师款 + 11 衣帽间旗舰款
-  - 每个 (风格 × 空间) 至少 4 条变体覆盖 5 档价格 + 6 种尺寸 + 8 个颜色
+- **440 条** 案例 — 11 风格 × 8 空间 × 5 变体
+  - 每个 (风格 × 空间) 5 条变体覆盖 5 档价格 + 业务尺寸 + 8 个颜色
   - **组合保障**：任意 (style + space + color + size + price) 任一选中都能命中 ≥1 条
-  - 所有图片来自 [Unsplash](https://unsplash.com) 真实摄影作品的本地镜像 (33 张)，下载到 `web/public/img-pool/case_NN.jpg`，永不裂图
+  - 图片来自 Wikimedia Commons 开放许可真实摄影作品，本地按 11 风格 × 8 空间保存 88 张；作者、许可、来源和 SHA-256 见 `web/public/img-pool/SOURCES.md` 与 `SOURCES.json`
 
 ---
 

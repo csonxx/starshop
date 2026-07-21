@@ -5,11 +5,11 @@ export const api = {
   login: (phone, code) => http.post('/auth/login', { phone, code }),
   me: () => http.get('/me'),
 
-  banners: () => http.get('/banners'),
-  tags: (type) => http.get('/tags', { params: type ? { type } : {} }),
-  cases: (params) => http.get('/cases', { params }),
-  caseDetail: (id) => http.get(`/cases/${id}`),
-  pinned: () => http.get('/cases/pinned'),
+  banners: (config = {}) => http.get('/banners', config),
+  tags: (type, config = {}) => http.get('/tags', { ...config, params: type ? { type } : {} }),
+  cases: (params, config = {}) => http.get('/cases', { ...config, params }),
+  caseDetail: (id, config = {}) => http.get(`/cases/${id}`, config),
+  pinned: (config = {}) => http.get('/cases/pinned', config),
 
   // admin
   adminOverview: () => http.get('/admin/overview'),
@@ -26,6 +26,7 @@ export const api = {
   adminDeleteTag: (id) => http.delete(`/admin/tags/${id}`),
 
   adminListCases: () => http.get('/admin/cases'),
+  adminGetCase: (id) => http.get(`/admin/cases/${id}`),
   adminCreateCase: (payload) => http.post('/admin/cases', payload),
   adminUpdateCase: (id, payload) => http.put(`/admin/cases/${id}`, payload),
   adminDeleteCase: (id) => http.delete(`/admin/cases/${id}`),

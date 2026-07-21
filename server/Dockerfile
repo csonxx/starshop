@@ -6,9 +6,13 @@
 # =============================================================================
 
 # ---------- 阶段 1: 编译 ----------
-FROM golang:1.21-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.21-alpine AS builder
 
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+ARG BUILDPLATFORM
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+ENV CGO_ENABLED=0
 
 # alpine 用镜像源加速
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
@@ -23,10 +27,10 @@ RUN go mod download -x
 COPY . .
 
 # 3) 编译 server (静态二进制, 剥离调试符号, 减小镜像)
-RUN go build -trimpath -ldflags "-s -w" -o /out/server ./cmd/server
+RUN GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath -ldflags "-s -w" -o /out/server ./cmd/server
 
 # 4) 编译 seed 工具 (一次性 init 容器用)
-RUN go build -trimpath -ldflags "-s -w" -o /out/seed ./cmd/seed
+RUN GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath -ldflags "-s -w" -o /out/seed ./cmd/seed
 
 # ---------- 阶段 2: 运行镜像 ----------
 FROM alpine:3.19
@@ -63,6 +67,6 @@ ENV STAR_HTTP_PORT=8080 \
 
 # 健康检查: GET /healthz 需返回 200
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -sI http://localhost:${STAR_HTTP_PORT}/healthz | grep "200" >/dev/null || exit 1
+  CMD curl --fail --silent --show-error "http://127.0.0.1:${STAR_HTTP_PORT}/healthz" >/dev/null || exit 1
 
-CMD ["/app/server"] 
+CMD ["/app/server"]

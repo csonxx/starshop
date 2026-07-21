@@ -2,7 +2,7 @@
 # 星仔高端定制官网 · 一键启动
 # 服务:
 #   mongo : MongoDB 6.0
-#   api   : Go 后端 (内部 :8080, 对外 :8080)
+#   api   : Go 后端 (内部 :8080, 对外默认 :8181)
 #   web   : React 前端 (nginx 静态 + 反向代理 /api → api:8080, 对外 :5173)
 #   seed  : 一次性 init 容器, 给 mongo 写种子数据
 # 用法:
@@ -19,7 +19,7 @@ services:
     container_name: star-mongo
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "${STAR_MONGO_PORT:-27017}:27017"
     volumes:
       - star_mongo_data:/data/db
     healthcheck:
@@ -42,7 +42,7 @@ services:
       mongo:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${STAR_API_PORT:-8181}:8080"
     environment:
       TZ: Asia/Shanghai
       STAR_HTTP_PORT: 8080
@@ -55,7 +55,7 @@ services:
       STAR_SALES_PHONES: "13900000001,13900000002"
       STAR_SUPPLIER_PHONES: "13700000001,13700000002"
     healthcheck:
-      test: ["CMD", "curl", "-sI", "http://localhost:8080/healthz"]
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/readyz"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -73,9 +73,9 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "5173:80"
+      - "${STAR_WEB_PORT:-5173}:80"
     healthcheck:
-      test: ["CMD", "curl", "-sI", "http://localhost/healthz"]
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1/healthz"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -93,6 +93,7 @@ services:
       STAR_MONGO_URI: mongodb://mongo:27017
       STAR_DB_NAME: star
       STAR_ADMIN_PHONE: "13800138000"
+      STAR_ALLOW_DESTRUCTIVE_SEED: "true"
     entrypoint: ["/app/seed"]
     restart: "no"
     profiles: ["seed"]  # 默认不启动:  docker compose --profile seed run seed

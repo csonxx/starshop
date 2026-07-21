@@ -7,6 +7,7 @@ export default function Banner({ items }) {
 
   useEffect(() => {
     if (!items?.length) return
+    setIdx((i) => i % items.length)
     const t = setInterval(() => setIdx((i) => (i + 1) % items.length), 5500)
     return () => clearInterval(t)
   }, [items])
@@ -31,7 +32,7 @@ export default function Banner({ items }) {
             <p className="bn-sub">{it.subtitle}</p>
             <div className="bn-actions">
               <Link to={it.link || '/cases'} className="btn btn-gold">探索系列</Link>
-              <a href="#cases" className="btn btn-ghost bn-ghost-light">查看案例</a>
+              <Link to="/cases#cases" className="btn btn-ghost bn-ghost-light">查看案例</Link>
             </div>
           </div>
         </div>

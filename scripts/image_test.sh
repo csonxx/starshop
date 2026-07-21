@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Star 图片访问 200 验证 - 防止裂图
-set -u
-WEB_ROOT="/Users/tt/goworkspace/src/csonxx/star/web"
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+WEB_ROOT="$HERE/web"
 SERVER="${SERVER:-http://localhost:8181}"
 FRONT="${FRONT:-http://localhost:5173}"
 
@@ -16,20 +17,30 @@ echo " Star · 图片加载验证"
 echo "============================================"
 
 echo ""
-echo "[1] 本地图池 33 张全部能访问"
+echo "[1] 本地图池 88 张风格空间图全部有效"
 i=0
 zero=0
-for f in $WEB_ROOT/public/img-pool/*.jpg; do
+invalid=0
+for f in $WEB_ROOT/public/img-pool/case_*_*_01.jpg; do
   i=$((i+1))
   name=$(basename "$f")
   size=$(stat -f %z "$f" 2>/dev/null || stat -c %s "$f")
   if [ "$size" -lt 1000 ]; then
     zero=$((zero+1))
   fi
+  if ! python3 - "$f" <<'PY'
+import sys
+from PIL import Image
+with Image.open(sys.argv[1]) as image:
+    image.verify()
+PY
+  then
+    invalid=$((invalid+1))
+  fi
 done
-echo "  共 $i 张, 0 字节 $zero 张"
-if [ "$zero" = "0" ] && [ "$i" -ge 33 ]; then
-  ok "33+ 张图全部 ≥ 1KB"
+echo "  共 $i 张, 小于 1KB $zero 张, 无法解码 $invalid 张"
+if [ "$zero" = "0" ] && [ "$invalid" = "0" ] && [ "$i" = "88" ]; then
+  ok "88 张图全部 ≥ 1KB 且可解码"
 else
   bad "图池异常"
 fi
@@ -112,16 +123,18 @@ fi
 echo ""
 echo "[6] Banner 图 200 检查"
 BN=$(curl -s "$SERVER/api/v1/banners" | python3 -c "import sys,json; print('\n'.join(b['image'] for b in json.load(sys.stdin)['data']))")
-echo "$BN" | while IFS= read -r url; do
+while IFS= read -r url; do
+  [ -z "$url" ] && continue
   code=$(curl -s -o /dev/null -w "%{http_code}" "$FRONT$url")
   if [ "$code" = "200" ]; then
-    echo "  \033[32m✓\033[0m $url -> 200"
+    ok "$url -> 200"
   else
-    echo "  \033[31m✗\033[0m $url -> $code"
+    bad "$url -> $code"
   fi
-done
+done <<< "$BN"
 
 echo ""
 echo "============================================"
 echo " 结果:  PASS=$PASS  FAIL=$FAIL"
 echo "============================================"
+exit "$FAIL"

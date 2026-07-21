@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import CaseCard from '../components/CaseCard'
@@ -26,6 +26,28 @@ const SPACE_SIZES = {
   '多功能房': ['1500×2000榻榻米', '1800×2000升降桌', '1.6m书桌', '一字到顶收纳柜']
 }
 
+const FILTER_KEYS = ['space', 'color', 'size', 'price']
+const PAGE_SIZE = 24
+
+function readFilter(params) {
+  return FILTER_KEYS.reduce((result, key) => {
+    result[key] = params.get(key)?.split(',').map((value) => value.trim()).filter(Boolean) || []
+    return result
+  }, {})
+}
+
+function filterSearch(filter) {
+  const search = new URLSearchParams()
+  FILTER_KEYS.forEach((key) => {
+    if (filter[key].length) search.set(key, filter[key].join(','))
+  })
+  return search
+}
+
+function sameFilter(left, right) {
+  return FILTER_KEYS.every((key) => left[key].join(',') === right[key].join(','))
+}
+
 export default function StylePage() {
   const { slug } = useParams()
   const [params, setParams] = useSearchParams()
@@ -35,24 +57,26 @@ export default function StylePage() {
     space: [], color: [], size: [], price: []
   })
 
-  const [activeStyle, setActiveStyle] = useState(slug || '')
-  const [filter, setFilter] = useState({
-    space: params.get('space') || '',
-    color: params.get('color') || '',
-    size:  params.get('size')  || '',
-    price: params.get('price') || ''
-  })
+  const activeStyle = slug || ''
+  const [filter, setFilter] = useState(() => readFilter(params))
   const [cases, setCases] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [total, setTotal] = useState(0)
+  const [tagsLoading, setTagsLoading] = useState(true)
+  const [casesLoading, setCasesLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [tagsError, setTagsError] = useState('')
+  const [casesError, setCasesError] = useState('')
+  const requestRef = useRef(0)
 
   // 加载所有标签 + 风格列表
   useEffect(() => {
+    const controller = new AbortController()
     Promise.all([
-      api.tags('style'),
-      api.tags('space'),
-      api.tags('color'),
-      api.tags('size'),
-      api.tags('price')
+      api.tags('style', { signal: controller.signal }),
+      api.tags('space', { signal: controller.signal }),
+      api.tags('color', { signal: controller.signal }),
+      api.tags('size', { signal: controller.signal }),
+      api.tags('price', { signal: controller.signal })
     ]).then(([st, sp, cl, sz, pr]) => {
       setStyleTags(st.data || [])
       setSecondary({
@@ -61,60 +85,113 @@ export default function StylePage() {
         size: sz.data || [],
         price: pr.data || []
       })
-      setLoading(false)
-    }).catch((e) => { console.error(e); setLoading(false) })
+    }).catch((e) => {
+      if (e.name !== 'CanceledError') setTagsError(e.message || '筛选项加载失败')
+    }).finally(() => {
+      if (!controller.signal.aborted) setTagsLoading(false)
+    })
+    return () => controller.abort()
   }, [])
 
-  // 路由 slug 切换 → 重置
   useEffect(() => {
-    setActiveStyle(slug || '')
-  }, [slug])
+    const next = readFilter(params)
+    setFilter((current) => sameFilter(current, next) ? current : next)
+  }, [params])
 
   // 空间变化时，尺寸选项随之变化（若当前尺寸不合法则清空）
   useEffect(() => {
-    if (!filter.space) return
-    const allowed = SPACE_SIZES[filter.space] || []
-    if (filter.size && !allowed.includes(filter.size)) {
-      setFilter((cur) => ({ ...cur, size: '' }))
+    if (filter.space.length !== 1) return
+    const allowed = SPACE_SIZES[filter.space[0]] || []
+    const sizes = filter.size.filter((value) => allowed.includes(value))
+    if (sizes.length !== filter.size.length) {
+      updateFilter({ ...filter, size: sizes })
     }
-  }, [filter.space])
+  }, [filter.space, filter.size])
 
-  // 查询案例
   useEffect(() => {
-    if (loading) return
-    const q = { page: 1, pageSize: 60 }
+    const controller = new AbortController()
+    const requestID = ++requestRef.current
+    const q = { page: 1, pageSize: PAGE_SIZE }
     if (activeStyle) q.style = activeStyle
-    if (filter.space) q.space = filter.space
-    if (filter.color) q.color = filter.color
-    if (filter.size) q.size = filter.size
-    if (filter.price) q.price = filter.price
-    api.cases(q).then((r) => setCases(r.data.list || []))
-      .catch(console.error)
-  }, [activeStyle, filter, loading])
+    FILTER_KEYS.forEach((key) => {
+      if (filter[key].length) q[key] = filter[key].join(',')
+    })
+    setCasesLoading(true)
+    setLoadingMore(false)
+    setCasesError('')
+    api.cases(q, { signal: controller.signal }).then((r) => {
+      if (requestID !== requestRef.current) return
+      setCases(r.data.list || [])
+      setTotal(r.data.total || 0)
+    }).catch((e) => {
+      if (e.name !== 'CanceledError' && requestID === requestRef.current) {
+        setCases([])
+        setTotal(0)
+        setCasesError(e.message || '案例加载失败')
+      }
+    }).finally(() => {
+      if (requestID === requestRef.current) setCasesLoading(false)
+    })
+    return () => controller.abort()
+  }, [activeStyle, filter])
 
   // 当选了空间时, 尺寸选项是 SPACE_SIZES[space] (业务规格)
   // 当没选空间时, 给所有真实业务规格去重展示
   const availSizes = useMemo(() => {
-    if (filter.space) {
-      return SPACE_SIZES[filter.space] || []
+    if (filter.space.length === 1) {
+      return SPACE_SIZES[filter.space[0]] || []
     }
-    // 全部规格合并去重
     const all = new Set()
     Object.values(SPACE_SIZES).forEach((arr) => arr.forEach((s) => all.add(s)))
     return Array.from(all)
   }, [filter.space])
 
-  const onStylePick = (val) => {
-    if (val === activeStyle) return
-    window.location.href = `/style/${val}`
-  }
-
   const onSecPick = (key, val) => {
-    setFilter((cur) => ({ ...cur, [key]: cur[key] === val ? '' : val }))
+    if (!val) {
+      updateFilter({ ...filter, [key]: [] })
+      return
+    }
+    const current = filter[key]
+    const next = current.includes(val)
+      ? current.filter((value) => value !== val)
+      : [...current, val]
+    updateFilter({ ...filter, [key]: next })
   }
 
   const onClearAll = () => {
-    setFilter({ space: '', color: '', size: '', price: '' })
+    updateFilter({ space: [], color: [], size: [], price: [] })
+  }
+
+  const updateFilter = (next) => {
+    requestRef.current += 1
+    setCasesLoading(true)
+    setLoadingMore(false)
+    setParams(filterSearch(next), { replace: true })
+  }
+
+  const loadMore = async () => {
+    if (loadingMore || casesLoading || cases.length >= total) return
+    const requestID = requestRef.current
+    const q = { page: Math.floor(cases.length / PAGE_SIZE) + 1, pageSize: PAGE_SIZE }
+    if (activeStyle) q.style = activeStyle
+    FILTER_KEYS.forEach((key) => {
+      if (filter[key].length) q[key] = filter[key].join(',')
+    })
+    setLoadingMore(true)
+    setCasesError('')
+    try {
+      const r = await api.cases(q)
+      if (requestID !== requestRef.current) return
+      setCases((current) => {
+        const seen = new Set(current.map((item) => item.id))
+        return [...current, ...(r.data.list || []).filter((item) => !seen.has(item.id))]
+      })
+      setTotal(r.data.total || 0)
+    } catch (e) {
+      if (requestID === requestRef.current) setCasesError(e.message || '更多案例加载失败')
+    } finally {
+      if (requestID === requestRef.current) setLoadingMore(false)
+    }
   }
 
   const currentStyle = styleTags.find((s) => s.value === activeStyle)
@@ -129,7 +206,7 @@ export default function StylePage() {
               ? <>甄选 <span className="hl">{currentStyle.name}</span> 全屋定制案例</>
               : <>甄选全部主流风格 · 全屋定制案例</>}
           </h1>
-          <p className="sp-sub">{cases.length} 个作品 · 工厂直营 · 设计师 1V1</p>
+          <p className="sp-sub">{total} 个作品 · 工厂直营 · 设计师 1V1</p>
         </div>
       </section>
 
@@ -141,13 +218,13 @@ export default function StylePage() {
           </div>
           <div className="sp-style-chips">
             <Link
-              to="/cases"
+              to={{ pathname: '/cases', search: params.toString() }}
               className={`chip ${!activeStyle ? 'active' : ''}`}
             >全部</Link>
             {styleTags.map((t) => (
               <Link
                 key={t.id}
-                to={`/style/${t.value}`}
+                to={{ pathname: `/style/${t.value}`, search: params.toString() }}
                 className={`chip ${activeStyle === t.value ? 'active' : ''}`}
               >{t.name}</Link>
             ))}
@@ -161,9 +238,9 @@ export default function StylePage() {
             <span className="display">02 · 筛选 FILTER</span>
             <span className="muted">
               空间 · 颜色 · 尺寸 · 价格
-              {filter.space && ` · 当前空间「${filter.space}」`}
+              {filter.space.length > 0 && ` · 已选 ${filter.space.length} 个空间`}
             </span>
-            {(filter.space || filter.color || filter.size || filter.price) && (
+            {FILTER_KEYS.some((key) => filter[key].length > 0) && (
               <button className="sp-clear" onClick={onClearAll}>清除筛选</button>
             )}
           </div>
@@ -171,13 +248,13 @@ export default function StylePage() {
           <div className="sp-filter-card">
             <FilterRow label="空间">
               <button
-                className={`chip ${!filter.space ? 'active' : ''}`}
+                className={`chip ${filter.space.length === 0 ? 'active' : ''}`}
                 onClick={() => onSecPick('space', '')}
               >不限</button>
               {secondary.space.map((t) => (
                 <button
                   key={t.id}
-                  className={`chip ${filter.space === t.value ? 'active' : ''}`}
+                  className={`chip ${filter.space.includes(t.value) ? 'active' : ''}`}
                   onClick={() => onSecPick('space', t.value)}
                 >{t.name}</button>
               ))}
@@ -185,7 +262,7 @@ export default function StylePage() {
 
             <FilterRow label="颜色">
               <button
-                className={`color-dot ${!filter.color ? 'active' : ''}`}
+                className={`color-dot ${filter.color.length === 0 ? 'active' : ''}`}
                 style={{ background: 'transparent', outline: '1px dashed var(--mist)' }}
                 onClick={() => onSecPick('color', '')}
                 data-name="不限"
@@ -193,7 +270,7 @@ export default function StylePage() {
               {secondary.color.map((t) => (
                 <button
                   key={t.id}
-                  className={`color-dot ${filter.color === t.value ? 'active' : ''}`}
+                  className={`color-dot ${filter.color.includes(t.value) ? 'active' : ''}`}
                   style={{ background: t.color }}
                   data-name={t.name}
                   onClick={() => onSecPick('color', t.value)}
@@ -202,15 +279,15 @@ export default function StylePage() {
               ))}
             </FilterRow>
 
-            <FilterRow label={filter.space ? `尺寸 (依「${filter.space}」联动)` : '尺寸'}>
+            <FilterRow label={filter.space.length === 1 ? `尺寸 (依「${filter.space[0]}」联动)` : '尺寸'}>
               <button
-                className={`chip ${!filter.size ? 'active' : ''}`}
+                className={`chip ${filter.size.length === 0 ? 'active' : ''}`}
                 onClick={() => onSecPick('size', '')}
               >不限</button>
               {availSizes.map((s) => (
                 <button
                   key={s}
-                  className={`chip ${filter.size === s ? 'active' : ''}`}
+                  className={`chip ${filter.size.includes(s) ? 'active' : ''}`}
                   onClick={() => onSecPick('size', s)}
                 >{s}</button>
               ))}
@@ -218,13 +295,13 @@ export default function StylePage() {
 
             <FilterRow label="价格">
               <button
-                className={`chip ${!filter.price ? 'active' : ''}`}
+                className={`chip ${filter.price.length === 0 ? 'active' : ''}`}
                 onClick={() => onSecPick('price', '')}
               >不限</button>
               {secondary.price.map((t) => (
                 <button
                   key={t.id}
-                  className={`chip ${filter.price === t.value ? 'active' : ''}`}
+                  className={`chip ${filter.price.includes(t.value) ? 'active' : ''}`}
                   onClick={() => onSecPick('price', t.value)}
                 >{t.name}</button>
               ))}
@@ -233,23 +310,36 @@ export default function StylePage() {
         </div>
       </section>
 
-      <section className="sp-list">
+      <section className="sp-list" id="cases">
         <div className="container">
           <div className="sp-eyebrow-row">
             <span className="display">03 · 案例 WORKS</span>
             <span className="muted">
-              {cases.length} 个作品
+              {total} 个作品
               {activeStyle && currentStyle && ` · ${currentStyle.name}`}
             </span>
           </div>
 
-          {loading && <div className="empty">载入中...</div>}
-          {!loading && cases.length === 0 && (
+          {tagsLoading && casesLoading && <div className="empty">载入中...</div>}
+          {(tagsError || casesError) && (
+            <div className="sp-error" role="alert">
+              <span>{tagsError || casesError}</span>
+              <button className="btn btn-ghost" onClick={() => window.location.reload()}>重新加载</button>
+            </div>
+          )}
+          {!casesLoading && !tagsError && !casesError && cases.length === 0 && (
             <div className="empty">暂无匹配案例 · 试试切换风格或筛选条件</div>
           )}
           <div className="sp-grid">
             {cases.map((c) => <CaseCard key={c.id} item={c} />)}
           </div>
+          {cases.length > 0 && cases.length < total && (
+            <div className="sp-load-more">
+              <button className="btn btn-primary" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? '加载中...' : `加载更多 · 还有 ${total - cases.length} 个`}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

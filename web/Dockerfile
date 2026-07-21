@@ -45,8 +45,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -sI http://localhost/ | grep "200" >/dev/null || exit 1
+  CMD curl --fail --silent --show-error http://localhost/healthz >/dev/null || exit 1
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["nginx", "-g", "daemon off;"]

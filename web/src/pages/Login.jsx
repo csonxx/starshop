@@ -12,7 +12,8 @@ export default function Login() {
   const [countdown, setCountdown] = useState(0)
   const nav = useNavigate()
   const [params] = useSearchParams()
-  const redirect = params.get('redirect') || '/'
+  const redirectParam = params.get('redirect') || '/'
+  const redirect = redirectParam.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/'
   const { login } = useUser()
 
   const sendCode = async () => {
@@ -22,7 +23,7 @@ export default function Login() {
     }
     try {
       const r = await api.sendCode(phone)
-      setHint(`验证码已发送 (开发期固定 ${r.data.code})`)
+      setHint(r.data.message || '验证码已发送')
       setCountdown(60)
       const timer = setInterval(() => {
         setCountdown((c) => {
@@ -40,7 +41,7 @@ export default function Login() {
     setLoading(true)
     try {
       const u = await login(phone, code)
-      if (u.role === 'admin') {
+      if (u.role === 'admin' && redirect === '/') {
         nav('/admin', { replace: true })
       } else {
         nav(redirect, { replace: true })

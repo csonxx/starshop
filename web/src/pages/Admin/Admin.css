@@ -210,6 +210,17 @@
 
 .status-on { color: var(--gold-deep); }
 .status-off { color: rgba(14, 14, 16, 0.35); }
+.adm-message {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.adm-message.error {
+  color: var(--carmine);
+  background: rgba(143, 45, 57, 0.08);
+  border: 1px solid rgba(143, 45, 57, 0.2);
+}
 
 /* Form */
 .adm-form {

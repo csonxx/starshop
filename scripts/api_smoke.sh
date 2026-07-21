@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Star API 端到端冒烟测试 - 全自动
 set -u
-BASE="${BASE:-http://localhost:8080/api/v1}"
+BASE="${BASE:-http://127.0.0.1:8181/api/v1}"
 PASS=0
 FAIL=0
 
@@ -79,6 +79,8 @@ echo ""
 echo "[2] 鉴权 - 登录 + 验证码"
 code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -X POST -H 'Content-Type: application/json' -d '{"phone":"13800138000"}' "$BASE/auth/send-code")
 [ "$code" = "200" ] && ok "POST /auth/send-code (HTTP 200)" || bad "POST /auth/send-code" "HTTP $code"
+CODE_EXPOSED=$(cat /tmp/star_resp.json | python3 -c "import sys,json; d=json.load(sys.stdin); print('1' if d.get('data',{}).get('code') else '0')" 2>/dev/null)
+[ "$CODE_EXPOSED" = "0" ] && ok "验证码响应不回传明文" || bad "验证码响应" "泄露验证码"
 
 code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -X POST -H 'Content-Type: application/json' -d '{"phone":"13800138000","code":"1234"}' "$BASE/auth/login")
 [ "$code" = "200" ] && ok "POST /auth/login (admin)" || bad "POST /auth/login" "HTTP $code"
@@ -99,7 +101,7 @@ USER_TOKEN=$(cat /tmp/star_resp.json | python3 -c "import sys,json; d=json.load(
 
 # 错误验证码
 code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -X POST -H 'Content-Type: application/json' -d '{"phone":"13800138000","code":"0000"}' "$BASE/auth/login")
-[ "$code" = "400" ] && ok "POST /auth/login (错误验证码应被拒)" || bad "wrong code" "HTTP $code"
+[ "$code" = "401" ] && ok "POST /auth/login (错误验证码应被拒)" || bad "wrong code" "HTTP $code"
 
 echo ""
 echo "[3] /me 鉴权"
@@ -134,8 +136,8 @@ code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -H "Authorization: 
 code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$BASE/admin/overview")
 [ "$code" = "200" ] && ok "GET /admin/overview (admin)" || bad "/admin admin" "HTTP $code"
 
-code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$BASE/admin/stats/by-style")
-[ "$code" = "200" ] && ok "GET /admin/stats/by-style" || bad "/admin stats" "HTTP $code"
+code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$BASE/admin/stats/styles")
+[ "$code" = "200" ] && ok "GET /admin/stats/styles" || bad "/admin stats" "HTTP $code"
 
 code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$BASE/admin/banners")
 [ "$code" = "200" ] && ok "GET /admin/banners" || bad "/admin/banners" "HTTP $code"
@@ -145,6 +147,9 @@ code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -H "Authorization: 
 
 code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$BASE/admin/cases")
 [ "$code" = "200" ] && ok "GET /admin/cases" || bad "/admin/cases" "HTTP $code"
+
+code=$(curl -s -m 6 -o /tmp/star_resp.json -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$BASE/admin/cases/not-an-id")
+[ "$code" = "400" ] && ok "GET /admin/cases/:id (非法 ID 应 400)" || bad "/admin/cases invalid id" "HTTP $code"
 
 echo ""
 echo "[6] 后台 CRUD - 标签 / Banner / 案例"

@@ -1,53 +1,48 @@
+// Package scripts 提供种子数据, 仅用于开发/演示场景.
 package scripts
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"time"
+	"strings"
 
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 
-	"star/server/internal/db"
 	"star/server/internal/model"
 	"star/server/internal/repo"
 )
 
-// SeedData 把种子数据初始化封装成一个结构, 由 cmd/seed 调用
-// 流程: 清空 collection -> 写用户 -> 写 Banner -> 写标签 -> 写案例
+// SeedData 把种子数据初始化封装成一个结构, 由 cmd/seed 调用.
 type SeedData struct {
+	DB     *mongo.Database
 	Users  *repo.UserRepo
 	Banner *repo.BannerRepo
 	Tags   *repo.TagRepo
 	Cases  *repo.CaseRepo
 }
 
-// NewSeed 用 db.Store 构造全部 repo
-func NewSeed(store *db.Store) *SeedData {
+// NewSeed 基于 Store 构造.
+func NewSeed(store *mongo.Database) *SeedData {
 	return &SeedData{
-		Users:  repo.NewUserRepo(store.Coll("users")),
-		Banner: repo.NewBannerRepo(store.Coll("banners")),
-		Tags:   repo.NewTagRepo(store.Coll("tags")),
-		Cases:  repo.NewCaseRepo(store.Coll("cases")),
+		DB:     store,
+		Users:  repo.NewUserRepo(store),
+		Banner: repo.NewBannerRepo(store),
+		Tags:   repo.NewTagRepo(store),
+		Cases:  repo.NewCaseRepo(store),
 	}
 }
 
-// Run 全量覆盖: 先清空 (避免重复) 再写入种子
+// Run 全量覆盖: 先清空再写入种子. 已在 cmd/seed 层做环境保护.
 func (s *SeedData) Run(ctx context.Context, adminPhone string) error {
 	log.Printf("[seed] start clearing all collections ...")
-	if err := s.Banner.Clear(ctx); err != nil {
-		return err
+	for _, fn := range []func(context.Context) error{
+		s.Banner.Clear, s.Tags.Clear, s.Cases.Clear,
+	} {
+		if err := fn(ctx); err != nil {
+			return fmt.Errorf("clear: %w", err)
+		}
 	}
-	if err := s.Tags.Clear(ctx); err != nil {
-		return err
-	}
-	if err := s.Cases.Clear(ctx); err != nil {
-		return err
-	}
-	// 清空本地本地的旧上传图 (避免被引用到不存在的文件)
-	publicUploads := "../web/public/uploads"
-	_ = removeAll(publicUploads)
-	_ = mkdirAll(publicUploads)
-
 	log.Printf("[seed] start writing real seed data")
 	if err := s.seedUsers(ctx, adminPhone); err != nil {
 		return err
@@ -61,195 +56,75 @@ func (s *SeedData) Run(ctx context.Context, adminPhone string) error {
 	if err := s.seedCases(ctx); err != nil {
 		return err
 	}
-	log.Printf("[seed] DONE. 全部种子数据写入完成")
+	log.Printf("[seed] DONE")
 	return nil
 }
 
-// seedUsers upsert 管理员账号 (白名单手机号), 确保管理员存在
+// seedUsers upsert 管理员账号, 其他角色不通过 seed 引入.
 func (s *SeedData) seedUsers(ctx context.Context, adminPhone string) error {
-	now := time.Now()
-	_, err := s.Users.UpsertByPhone(ctx, adminPhone)
-	if err != nil {
-		return err
+	if strings.TrimSpace(adminPhone) == "" {
+		return nil
 	}
-	_, err = s.Users.Coll().UpdateOne(ctx, bson.M{"phone": adminPhone}, bson.M{
-		"$set": bson.M{"role": model.RoleAdmin, "nickname": "星仔管理员", "updatedAt": now},
-	})
-	if err == nil {
-		log.Printf("[seed] admin user upserted: %s", adminPhone)
+	if _, err := s.Users.UpsertByPhone(ctx, adminPhone, "星仔管理员", ""); err != nil {
+		return fmt.Errorf("upsert user: %w", err)
 	}
-	return err
+	if err := s.Users.EnsureAdmin(ctx, adminPhone); err != nil {
+		return fmt.Errorf("ensure admin: %w", err)
+	}
+	log.Printf("[seed] admin user upserted: %s", adminPhone)
+	return nil
 }
 
-// seedBanners 4 张 Banner (工厂直营 + 三种主流风格)
+// seedBanners 4 张 Banner, 启用 4 张均包含在 5 张上限内.
 func (s *SeedData) seedBanners(ctx context.Context) error {
+	imgs := LoadBannerImages()
 	banners := []model.Banner{
 		{
-			Title:    "工厂直营 · 全屋定制",
-			Subtitle: "自有 12,000㎡ 智造工厂 · 从板材到入住 28 天",
-			Image:    imgW("Luxury whole-house custom furniture factory showroom, warm champagne gold interior, floor-to-ceiling wardrobe and display cabinet, soft ambient lighting, marble floor, editorial photography"),
-			Link:     "/cases",
-			Sort:     1,
-			Enabled:  true,
+			Title: "工厂直营 · 全屋定制", Image: imgs[0],
+			Link: "/cases", Enabled: true, Sort: 1,
 		},
 		{
-			Title:    "新中式 · 静谧东方",
-			Subtitle: "胡桃木 + 隐框门 · 一门到顶 2.7m 通顶设计",
-			Image:    imgW("New Chinese style living room with walnut wood floor-to-ceiling cabinet, rice paper screen, jade green accent wall, warm lantern lighting, elegant zen mood"),
-			Link:     "/style/new-chinese",
-			Sort:     2,
-			Enabled:  true,
+			Title: "新中式 · 静谧东方", Image: imgs[1],
+			Link: "/style/new-chinese", Enabled: true, Sort: 2,
 		},
 		{
-			Title:    "奶油风 · 治愈系暖居",
-			Subtitle: "奶咖色 PET 门板 · 圆弧工艺 · 治愈每一天",
-			Image:    imgW("Cream style bedroom with cream colored PET wardrobe, rounded corners, soft linen textile, warm morning light, cozy healing interior photography"),
-			Link:     "/style/cream",
-			Sort:     3,
-			Enabled:  true,
+			Title: "奶油风 · 治愈系暖居", Image: imgs[2],
+			Link: "/style/cream", Enabled: true, Sort: 3,
 		},
 		{
-			Title:    "意式轻奢 · 高阶质感",
-			Subtitle: "岩板 + 镀钛金属 · 入户到卧室一气呵成",
-			Image:    imgW("Italian light luxury living room, sintered stone TV wall, titanium gold metal accents, dark walnut wood cabinetry, premium leather sofa, dramatic lighting, editorial magazine style"),
-			Link:     "/style/italian-luxury",
-			Sort:     4,
-			Enabled:  true,
+			Title: "意式轻奢 · 高阶质感", Image: imgs[3],
+			Link: "/style/italian-luxury", Enabled: true, Sort: 4,
 		},
 	}
-	for i := range banners {
-		if err := s.Banner.Insert(ctx, &banners[i]); err != nil {
-			return err
+	for _, b := range banners {
+		if _, err := s.Banner.Insert(ctx, b); err != nil {
+			return fmt.Errorf("insert banner: %w", err)
 		}
 	}
-	log.Printf("[seed] 写入 %d 张 Banner", len(banners))
+	log.Printf("[seed] %d banners inserted", len(banners))
 	return nil
 }
 
-// seedTags 写入 5 类标签: 风格 / 空间 / 颜色 / 尺寸 / 价格
+// seedTags 写风格/空间/颜色/尺寸/价格. 尺寸来自 cases.go 的 SPACE_SIZES_MAP 去重.
 func (s *SeedData) seedTags(ctx context.Context) error {
-	// 一级: 11 种主流风格
-	styles := []model.Tag{
-		{Name: "新中式", Value: "new-chinese", Icon: "中", Sort: 1},
-		{Name: "奶油风", Value: "cream", Icon: "奶", Sort: 2},
-		{Name: "意式轻奢", Value: "italian-luxury", Icon: "意", Sort: 3},
-		{Name: "现代简约", Value: "modern", Icon: "现", Sort: 4},
-		{Name: "北欧", Value: "nordic", Icon: "北", Sort: 5},
-		{Name: "日式无印", Value: "japanese", Icon: "日", Sort: 6},
-		{Name: "美式", Value: "american", Icon: "美", Sort: 7},
-		{Name: "侘寂", Value: "wabi-sabi", Icon: "寂", Sort: 8},
-		{Name: "极简", Value: "minimalist", Icon: "极", Sort: 9},
-		{Name: "法式", Value: "french", Icon: "法", Sort: 10},
-		{Name: "工业风", Value: "industrial", Icon: "工", Sort: 11},
-	}
-	for i := range styles {
-		styles[i].Type = model.TagStyle
-		styles[i].Enabled = true
-		if err := s.Tags.Insert(ctx, &styles[i]); err != nil {
-			return err
+	tags := BuildTagSeed()
+	for _, t := range tags {
+		if _, err := s.Tags.Insert(ctx, t); err != nil {
+			return fmt.Errorf("insert tag: %w", err)
 		}
 	}
-
-	// 二级: 空间 (9)
-	spaces := []model.Tag{
-		{Name: "客厅", Value: "客厅", Sort: 1},
-		{Name: "餐厅", Value: "餐厅", Sort: 2},
-		{Name: "主卧", Value: "主卧", Sort: 3},
-		{Name: "次卧", Value: "次卧", Sort: 4},
-		{Name: "书房", Value: "书房", Sort: 5},
-		{Name: "衣帽间", Value: "衣帽间", Sort: 6},
-		{Name: "玄关", Value: "玄关", Sort: 7},
-		{Name: "儿童房", Value: "儿童房", Sort: 8},
-		{Name: "多功能房", Value: "多功能房", Sort: 9},
-	}
-	for i := range spaces {
-		spaces[i].Type = model.TagSpace
-		spaces[i].Enabled = true
-		if err := s.Tags.Insert(ctx, &spaces[i]); err != nil {
-			return err
-		}
-	}
-
-	// 二级: 颜色 (8 色卡 + 真实色值)
-	colors := []model.Tag{
-		{Name: "雾霾蓝", Value: "雾霾蓝", Color: "#7A8FA6", Sort: 1},
-		{Name: "莫兰迪绿", Value: "莫兰迪绿", Color: "#8DA38F", Sort: 2},
-		{Name: "奶油白", Value: "奶油白", Color: "#F5EFE3", Sort: 3},
-		{Name: "焦糖棕", Value: "焦糖棕", Color: "#A56B3F", Sort: 4},
-		{Name: "烟灰", Value: "烟灰", Color: "#9AA0A6", Sort: 5},
-		{Name: "暮青", Value: "暮青", Color: "#1F3A3D", Sort: 6},
-		{Name: "原木", Value: "原木", Color: "#C8A478", Sort: 7},
-		{Name: "胭脂粉", Value: "胭脂粉", Color: "#D89A9E", Sort: 8},
-	}
-	for i := range colors {
-		colors[i].Type = model.TagColor
-		colors[i].Enabled = true
-		if err := s.Tags.Insert(ctx, &colors[i]); err != nil {
-			return err
-		}
-	}
-
-	// 二级: 尺寸 (业务规格分组, 不是抽象数字)
-	// 衣柜规格: 深度 × 高度 (用"深·高"表述更具体)
-	sizes := []model.Tag{
-		{Name: "560深·2.4m高", Value: "560深·2.4m高", Sort: 1},
-		{Name: "560深·2.7m通顶", Value: "560深·2.7m通顶", Sort: 2},
-		{Name: "580深·一门到顶", Value: "580深·一门到顶", Sort: 3},
-		{Name: "U型步入式", Value: "U型步入式", Sort: 4},
-		{Name: "L型步入式", Value: "L型步入式", Sort: 5},
-		{Name: "2.0m悬空电视柜", Value: "2.0m悬空电视柜", Sort: 6},
-		{Name: "2.4m满墙电视柜", Value: "2.4m满墙电视柜", Sort: 7},
-		{Name: "3.0m展示柜", Value: "3.0m展示柜", Sort: 8},
-		{Name: "1.2m餐边柜", Value: "1.2m餐边柜", Sort: 9},
-		{Name: "1.5m餐边柜", Value: "1.5m餐边柜", Sort: 10},
-		{Name: "1.8m岛台一体", Value: "1.8m岛台一体", Sort: 11},
-		{Name: "1.2m书桌", Value: "1.2m书桌", Sort: 12},
-		{Name: "1.6m书桌", Value: "1.6m书桌", Sort: 13},
-		{Name: "1500×2000榻榻米", Value: "1500×2000榻榻米", Sort: 14},
-		{Name: "1800×2000升降桌", Value: "1800×2000升降桌", Sort: 15},
-		{Name: "1.2m通顶鞋柜", Value: "1.2m通顶鞋柜", Sort: 16},
-		{Name: "1.5m到顶鞋柜", Value: "1.5m到顶鞋柜", Sort: 17},
-		{Name: "换鞋凳一体", Value: "换鞋凳一体", Sort: 18},
-		{Name: "子母床·1.5m", Value: "子母床·1.5m", Sort: 19},
-		{Name: "上下铺·1.8m", Value: "上下铺·1.8m", Sort: 20},
-		{Name: "一字到顶收纳柜", Value: "一字到顶收纳柜", Sort: 21},
-	}
-	for i := range sizes {
-		sizes[i].Type = model.TagSize
-		sizes[i].Enabled = true
-		if err := s.Tags.Insert(ctx, &sizes[i]); err != nil {
-			return err
-		}
-	}
-
-	// 二级: 价格区间 (5 档)
-	prices := []model.Tag{
-		{Name: "1万以下", Value: "1万以下", Sort: 1},
-		{Name: "1-3万", Value: "1-3万", Sort: 2},
-		{Name: "3-5万", Value: "3-5万", Sort: 3},
-		{Name: "5-10万", Value: "5-10万", Sort: 4},
-		{Name: "10万+", Value: "10万+", Sort: 5},
-	}
-	for i := range prices {
-		prices[i].Type = model.TagPrice
-		prices[i].Enabled = true
-		if err := s.Tags.Insert(ctx, &prices[i]); err != nil {
-			return err
-		}
-	}
-	log.Printf("[seed] 写入风格 %d / 空间 %d / 颜色 %d / 尺寸 %d / 价格 %d",
-		len(styles), len(spaces), len(colors), len(sizes), len(prices))
+	log.Printf("[seed] %d tags inserted", len(tags))
 	return nil
 }
 
-// seedCases 程序化生成大量真实案例 (每个 风格×空间 组合多个变体)
+// seedCases 写案例.
 func (s *SeedData) seedCases(ctx context.Context) error {
 	cases := BuildCases()
-	for i := range cases {
-		if err := s.Cases.Insert(ctx, &cases[i]); err != nil {
-			return err
+	for _, cc := range cases {
+		if _, err := s.Cases.Insert(ctx, cc); err != nil {
+			return fmt.Errorf("insert case: %w", err)
 		}
 	}
-	log.Printf("[seed] 写入案例 %d 条", len(cases))
+	log.Printf("[seed] %d cases inserted", len(cases))
 	return nil
 }

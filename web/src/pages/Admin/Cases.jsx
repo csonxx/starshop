@@ -6,12 +6,13 @@ export default function Cases() {
   const [list, setList] = useState([])
   const [filterStyle, setFilterStyle] = useState('')
   const [styles, setStyles] = useState([])
+  const [error, setError] = useState('')
   const nav = useNavigate()
 
-  const load = () => api.adminListCases().then((r) => setList(r.data || []))
+  const load = () => api.adminListCases().then((r) => setList(r.data || [])).catch((err) => setError(err.message))
   useEffect(() => {
     load()
-    api.tags('style').then((r) => setStyles(r.data || []))
+    api.tags('style').then((r) => setStyles(r.data || [])).catch((err) => setError(err.message))
   }, [])
 
   const filtered = filterStyle
@@ -20,18 +21,27 @@ export default function Cases() {
 
   const onDelete = async (id) => {
     if (!confirm('确认删除该案例?')) return
-    await api.adminDeleteCase(id)
-    load()
+    try {
+      await api.adminDeleteCase(id)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
   }
   const onTogglePin = async (id) => {
-    await api.adminTogglePin(id)
-    load()
+    try {
+      await api.adminTogglePin(id)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (
     <div>
       <h1 className="adm-h1">案例管理</h1>
       <p className="adm-sub">新增 / 编辑 / 上下架 / 置顶 · 数据源：MongoDB</p>
+      {error && <div className="adm-message error">{error}</div>}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+set -uo pipefail
+FRONT="${FRONT:-http://localhost:5173}"
+FAIL=0
 echo "=== 前端关键资源加载测试 ==="
 for path in \
   "/src/App.jsx" \
@@ -18,6 +21,8 @@ for path in \
   "/src/api/index.js" \
   "/src/api/http.js" \
   "/src/main.jsx" ; do
-  code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:5173$path")
+  code=$(curl -s -o /dev/null -w "%{http_code}" "$FRONT$path")
   echo "  $code  $path"
+  [ "$code" = "200" ] || FAIL=$((FAIL+1))
 done
+exit "$FAIL"

@@ -40,4 +40,13 @@
   color: var(--gold-deep);
   margin: 0 0 32px;
 }
+.me-notice {
+  margin: -12px 0 28px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bone-soft);
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
 .me-card .btn { display: block; margin-top: 14px; }

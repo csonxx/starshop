@@ -10,26 +10,35 @@ export default function Home() {
   const [styleTags, setStyleTags] = useState([])
   const [pinned, setPinned] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
+    const controller = new AbortController()
     Promise.all([
-      api.banners(),
-      api.tags('style'),
-      api.pinned()
+      api.banners({ signal: controller.signal }),
+      api.tags('style', { signal: controller.signal }),
+      api.pinned({ signal: controller.signal })
     ]).then(([b, st, pn]) => {
       setBanners(b.data || [])
       setStyleTags(st.data || [])
       setPinned(pn.data || [])
-      setLoading(false)
     }).catch((e) => {
-      console.error(e)
-      setLoading(false)
+      if (e.name !== 'CanceledError') setError(e.message || '首页内容加载失败')
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false)
     })
+    return () => controller.abort()
   }, [])
 
   return (
     <div className="home">
       <Banner items={banners} />
+      {error && (
+        <div className="container home-error" role="alert">
+          <span>{error}</span>
+          <button className="btn btn-ghost" onClick={() => window.location.reload()}>重新加载</button>
+        </div>
+      )}
 
       <section className="factory" id="factory">
         <div className="container factory-row">
