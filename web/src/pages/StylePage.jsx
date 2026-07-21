@@ -28,6 +28,16 @@ const SPACE_SIZES = {
 
 const FILTER_KEYS = ['space', 'color', 'size', 'price']
 const PAGE_SIZE = 24
+const COLOR_VALUES = {
+  '雾霾蓝': '#7A8FA6',
+  '莫兰迪绿': '#8DA38F',
+  '奶油白': '#F5EFE3',
+  '焦糖棕': '#A56B3F',
+  '烟灰': '#9AA0A6',
+  '暮青': '#1F3A3D',
+  '原木': '#C8A478',
+  '胭脂粉': '#D89A9E'
+}
 
 function readFilter(params) {
   return FILTER_KEYS.reduce((result, key) => {
@@ -271,10 +281,11 @@ export default function StylePage() {
                 <button
                   key={t.id}
                   className={`color-dot ${filter.color.includes(t.value) ? 'active' : ''}`}
-                  style={{ background: t.color }}
+                  style={{ backgroundColor: COLOR_VALUES[t.value] || '#D8D3C9' }}
                   data-name={t.name}
                   onClick={() => onSecPick('color', t.value)}
                   title={t.name}
+                  aria-label={t.name}
                 />
               ))}
             </FilterRow>
